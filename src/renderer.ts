@@ -23,7 +23,8 @@ markdownView.addEventListener('keyup', (event: Event) => {
 })
 
 openFileButton.addEventListener('click', () => {
-    ipcRenderer.send('open-file-dialog');
+    console.log('Open file button clicked');
+    ipcRenderer.send('get-file-from-user');
 });
 
 ipcRenderer.on('file-opened', (event: typeof IpcRendererEvent, file: string, content: string) => {
