@@ -1,3 +1,4 @@
+const { ipcRenderer, IpcMainEvent, IpcRendererEvent } = require('electron');
 const {marked} = require('marked');
 
 const markdownView = document.getElementById('markdown') as HTMLTextAreaElement;
@@ -20,3 +21,12 @@ markdownView.addEventListener('keyup', (event: Event) => {
     const currentContent = (event.target as HTMLTextAreaElement).value;
     renderMarkdownToHtml(currentContent);
 })
+
+openFileButton.addEventListener('click', () => {
+    ipcRenderer.send('open-file-dialog');
+});
+
+ipcRenderer.on('file-opened', (event: typeof IpcRendererEvent, file: string, content: string) => {
+    markdownView.value = content;
+    renderMarkdownToHtml(content);
+});
