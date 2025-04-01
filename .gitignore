@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# JS file compiled from TS
+/dist
