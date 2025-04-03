@@ -93,3 +93,6 @@ out/
 
 # JS file compiled from TS
 /dist
+
+# VS Code files
+.vscode/
