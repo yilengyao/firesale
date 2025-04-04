@@ -1,5 +1,4 @@
 import { app, MenuItem, BrowserWindow, dialog } from "electron";
-import { access } from "original-fs";
 
 const { Menu } = require('electron');
 const mainProcess = require('./main');
