@@ -1,6 +1,7 @@
-import { IpcMainEvent, OpenDialogReturnValue, SaveDialogReturnValue } from 'electron';
+import { IpcMainEvent, OpenDialogReturnValue, SaveDialogReturnValue, KeyboardEvent } from 'electron';
 
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, Menu, ipcMain } = require('electron');
+const applicationMenu = require('./application-menu');
 const path = require('node:path');
 const fs = require('fs');
 
@@ -77,6 +78,7 @@ const createWindow = exports.createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(applicationMenu);
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
@@ -100,8 +102,20 @@ app.on('window-all-closed', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 ipcMain.on('get-file-from-user', (event: IpcMainEvent) => {
-  const targetWindow = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
-  dialog.showOpenDialog(targetWindow, {
+  openFileFromUser(event);
+});
+
+const openFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | typeof BrowserWindow): void => {
+  let targetWindow: typeof BrowserWindow;
+  
+  if (event instanceof BrowserWindow) {
+    targetWindow = event as typeof BrowserWindow;
+  } else {
+    event = event as IpcMainEvent;
+    targetWindow = BrowserWindow.fromWebContents(event.sender);
+  }
+
+    dialog.showOpenDialog(targetWindow, {
     properties: ['openFile'],
     filters: [
       { name: 'Text Files', extensions: ['txt'] },
@@ -111,12 +125,20 @@ ipcMain.on('get-file-from-user', (event: IpcMainEvent) => {
     if (!result.canceled && result.filePaths.length > 0) {
       const filePath = result.filePaths[0];
       const content = fs.readFileSync(filePath, 'utf-8');
-      event.sender.send('file-opened', filePath, content);
+      
+      // If event is IpcMainEvent
+      if ('sender' in event) {
+        event.sender.send('file-opened', filePath, content);
+      } else {
+        // For keyboard Event
+        targetWindow.webContents.send('file-opened', filePath, content);
+      }
+      
     }
   }).catch((err: Error) => {
     console.log('Error opening file:', err);
   })
-});
+}
 
 ipcMain.on('open-file', (event: IpcMainEvent, file: string) => {
   openFile(BrowserWindow.fromWebContents(event.sender), file);
@@ -132,22 +154,28 @@ const openFile = (targetWindow: typeof BrowserWindow, file: string): void => {
 
 ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: string) => {
   if (!file) {
-    const result = dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+    // No file path yet - show save dialog
+    dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
       title: "Save Markdown",
       defaultPath: app.getPath('documents'),
       filters: [
         { name: 'Markdown Files', extensions: ['md', 'markdown'] }
       ]
+    }).then((result: SaveDialogReturnValue) => {
+      if (result.canceled || !result.filePath) return;
+      file = result.filePath;
+      if (!file) return;
+
+      fs.writeFileSync(file, content);
+      openFile(BrowserWindow.fromWebContents(event.sender), file);
+    }).catch((err: Error) => {
+      console.log('Error saving file:', err);
     });
-
-    if (result.canceled || !result.filePath) return;
-    file = result.filePath;
+  } else {
+    // Already have a file path - save directly
+    fs.writeFileSync(file, content);
+    // No need to re-open the file since we're just saving
   }
-
-  if (!file) return;
-
-  fs.writeFileSync(file, content);
-  openFile(BrowserWindow.fromWebContents(event.sender), file);
 });
 
 ipcMain.on('save-html', (event: IpcMainEvent, content: string) => {
@@ -200,6 +228,51 @@ ipcMain.on('show-dialog-message',
   return result.response === 0;
 });
 
+const markdownContextMenu = (targetWindow: typeof BrowserWindow) => [
+  {
+    label: 'Open File',
+    click() {
+      openFileFromUser(targetWindow);
+    }
+  },
+  {
+    type: 'separator'
+  },
+  {
+    label: 'Cut',
+    click() {
+      targetWindow.webContents.cut();
+      targetWindow.webContents.send('render-markdown-html');
+    }
+  },
+  {
+    label: 'Copy',
+    role: 'copy'
+  },
+  {
+    label:'Paste',
+    async click() {
+      try {
+        await targetWindow.webContents.paste();
+        targetWindow.webContents.send('render-markdown-html');
+      } catch (error) {
+        console.error('Error pasting:', error);
+      }
+    }
+  },
+  {
+    label: 'Select All',
+    role: 'selectall'
+  }
+];
+
+ipcMain.on('show-context-menu', (event: IpcMainEvent) => {
+  const targetWindow = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
+  const menu = Menu.buildFromTemplate(markdownContextMenu(targetWindow));
+  menu.popup({
+    window: targetWindow
+  });
+});
 
 const startingWatchingFile = (targetWindow: typeof BrowserWindow, file: string): void => {
   stopWatchingFile(targetWindow);

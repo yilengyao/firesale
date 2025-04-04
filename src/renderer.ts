@@ -1,5 +1,5 @@
 const { ipcRenderer, IpcMainEvent, IpcRendererEvent } = require('electron');
-const {marked} = require('marked');
+const { marked } = require('marked');
 const path = require('node:path');
 
 const markdownView = document.getElementById('markdown') as HTMLTextAreaElement;
@@ -18,6 +18,11 @@ let originalContent: string = '';
 const renderMarkdownToHtml = (markdown: string): void => {
     htmlView.innerHTML = marked(markdown, { sanitize: true});
 };
+
+ipcRenderer.on('render-markdown-html', () => {
+    const content = markdownView.value;
+    renderMarkdownToHtml(content);
+})
 
 const renderFile = (file: string, content: string): void => {
     filePath = file;
@@ -53,6 +58,11 @@ markdownView.addEventListener('keyup', (event: Event) => {
     renderMarkdownToHtml(currentContent);
     updateUserInterface(currentContent !== originalContent);
 })
+
+markdownView.addEventListener('contextmenu', (event: MouseEvent) => {
+    event.preventDefault();
+    ipcRenderer.send('show-context-menu');
+});
 
 newFileButton.addEventListener('click', () => {
     // Invokes createWindow in main process
@@ -167,4 +177,12 @@ markdownView.addEventListener('drop', (event: DragEvent) => {
   
     markdownView.classList.remove('drag-over');
     markdownView.classList.remove('drag-error');
+});
+
+ipcRenderer.on('save-markdown', () => {
+    ipcRenderer.send('save-markdown', filePath, markdownView.value);
+})
+
+ipcRenderer.on('save-html', () => {
+    ipcRenderer.send('save-html', htmlView.innerHTML);
 });
