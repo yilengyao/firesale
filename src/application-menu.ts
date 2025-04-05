@@ -5,8 +5,16 @@ const createApplicationMenu = () => {
     const hasOneOrMoreWindows = !!BrowserWindow.getAllWindows().length;    
     const focusedWindow = BrowserWindow.getFocusedWindow();
     const hasFilePath = (item: typeof MenuItem, browserWindow: typeof BrowserWindow) => {
+        console.log('Checking hasFilePath for window:', browserWindow?.id);
+        console.log('openFiles exists:', !!mainProcess.openFiles);
+        console.log('openFiles entries:', [...(mainProcess.openFiles || new Map())]);
+        
         if (!browserWindow) return false;
-        return mainProcess.openFiles.has(browserWindow);
+        const result = mainProcess.openFiles.has(browserWindow);
+
+        console.log('Result:', result);
+
+        return result;
     };
 
     const template: any = [

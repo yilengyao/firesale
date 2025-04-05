@@ -9,7 +9,8 @@ app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 
 const windows = new Set() as Set<typeof BrowserWindow>;
-const openFiles = exports.openFiles = new Map() as Map<typeof BrowserWindow, string>;
+const openFiles = new Map() as Map<typeof BrowserWindow, string>;
+exports.openFiles = openFiles;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -136,7 +137,7 @@ const openFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | typeof
         // For keyboard Event
         targetWindow.webContents.send('file-opened', filePath, content);
       }
-      
+      createApplicationMenu();
     }
   }).catch((err: Error) => {
     console.log('Error opening file:', err);
@@ -171,6 +172,7 @@ ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: 
 
       fs.writeFileSync(file, content);
       openFile(BrowserWindow.fromWebContents(event.sender), file);
+      createApplicationMenu();
     }).catch((err: Error) => {
       console.log('Error saving file:', err);
     });
