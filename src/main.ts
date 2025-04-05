@@ -1,7 +1,7 @@
 import { IpcMainEvent, OpenDialogReturnValue, SaveDialogReturnValue, KeyboardEvent } from 'electron';
 
 const { app, BrowserWindow, dialog, Menu, ipcMain } = require('electron');
-const applicationMenu = require('./application-menu');
+const createApplicationMenu = require('./application-menu');
 const path = require('node:path');
 const fs = require('fs');
 
@@ -10,6 +10,7 @@ app.commandLine.appendSwitch('disable-software-rasterizer');
 
 const windows = new Set() as Set<typeof BrowserWindow>;
 const openFiles = new Map() as Map<typeof BrowserWindow, string>;
+exports.openFiles = openFiles;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -55,6 +56,8 @@ const createWindow = exports.createWindow = () => {
     newWindow.show();
   });
 
+  newWindow.on('focus', createApplicationMenu);
+
   newWindow.on('close', (event: Event) => {
     event.preventDefault();
     // console.log('Window closing');
@@ -64,6 +67,7 @@ const createWindow = exports.createWindow = () => {
 
   newWindow.on('closed', () => {
     windows.delete(newWindow);
+    createApplicationMenu();
     newWindow = null;
   });
 
@@ -78,7 +82,7 @@ const createWindow = exports.createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  Menu.setApplicationMenu(applicationMenu);
+  createApplicationMenu();
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
@@ -133,7 +137,7 @@ const openFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | typeof
         // For keyboard Event
         targetWindow.webContents.send('file-opened', filePath, content);
       }
-      
+      createApplicationMenu();
     }
   }).catch((err: Error) => {
     console.log('Error opening file:', err);
@@ -149,7 +153,7 @@ const openFile = (targetWindow: typeof BrowserWindow, file: string): void => {
   app.addRecentDocument(file);
   targetWindow.setRepresentedFilename(file);
   targetWindow.webContents.send('file-opened', file, content);
-  startingWatchingFile(targetWindow, file);
+  createApplicationMenu();
 }
 
 ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: string) => {
@@ -168,6 +172,7 @@ ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: 
 
       fs.writeFileSync(file, content);
       openFile(BrowserWindow.fromWebContents(event.sender), file);
+      createApplicationMenu();
     }).catch((err: Error) => {
       console.log('Error saving file:', err);
     });
@@ -273,16 +278,6 @@ ipcMain.on('show-context-menu', (event: IpcMainEvent) => {
     window: targetWindow
   });
 });
-
-const startingWatchingFile = (targetWindow: typeof BrowserWindow, file: string): void => {
-  stopWatchingFile(targetWindow);
-
-  fs.watchFile(file, () => {
-    const content: string = fs.readFileSync(file).toString();
-    targetWindow.webContents.send('file-changed', file, content);
-  })
-  openFiles.set(targetWindow, file);
-};
 
 const stopWatchingFile = (targetWindow: typeof BrowserWindow): void => {
   if (openFiles.has(targetWindow)) {

@@ -1,4 +1,4 @@
-const { ipcRenderer, IpcMainEvent, IpcRendererEvent } = require('electron');
+const { ipcRenderer, IpcMainEvent, IpcRendererEvent, shell } = require('electron');
 const { marked } = require('marked');
 const path = require('node:path');
 
@@ -30,6 +30,9 @@ const renderFile = (file: string, content: string): void => {
 
     markdownView.value = content;
     renderMarkdownToHtml(content);
+
+    showFileButton.disabled = false;
+    openInDefaultButton.disabled = false;
 
     updateUserInterface(false);
 };
@@ -86,6 +89,23 @@ revertButton.addEventListener('click', () => {
 saveHtmlButton.addEventListener('click', () => {
     ipcRenderer.send('save-html', htmlView.innerHTML);
 });
+
+const showFile = () => {
+    if (!filePath) {
+        return alert('This file has not been saved in the filesystem.');
+    }
+    shell.showItemInFolder(filePath);
+}
+
+const openInDefaultApplication = () => {
+    if (!filePath) {
+        return alert('This file has not been saved to the filesystem.');
+    }
+    shell.openPath(filePath);
+}
+
+showFileButton.addEventListener('click', showFile);
+openInDefaultButton.addEventListener('click', openInDefaultApplication);
 
 ipcRenderer.on('file-opened', async (event: typeof IpcRendererEvent, file: string, content: string) => {
     if (markdownView.value !== originalContent && originalContent !== content) {
