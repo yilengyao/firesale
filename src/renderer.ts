@@ -1,5 +1,3 @@
-// import type { IpcRendererEvent } from 'electron';
-
 const markdownView = document.getElementById('markdown') as HTMLTextAreaElement;
 const htmlView = document.getElementById('html') as HTMLDivElement;
 const newFileButton = document.getElementById('new-file') as HTMLButtonElement;
@@ -9,6 +7,12 @@ const revertButton = document.getElementById('revert') as HTMLButtonElement;
 const saveHtmlButton = document.getElementById('save-html') as HTMLButtonElement;
 const showFileButton = document.getElementById('show-file') as HTMLButtonElement;
 const openInDefaultButton = document.getElementById('open-in-default') as HTMLButtonElement;
+
+declare interface IpcRendererEvent {
+    sender: any;
+    senderId: number;
+    ports: MessagePort[];
+}
 
 let filePath: string | null = null;
 let originalContent: string = '';
@@ -106,7 +110,7 @@ const openInDefaultApplication = () => {
 showFileButton.addEventListener('click', showFile);
 openInDefaultButton.addEventListener('click', openInDefaultApplication);
 
-window.electronAPI.on('file-opened', async (event, file: string, content: string) => {
+window.electronAPI.on('file-opened', async (event: IpcRendererEvent, file: string, content: string) => {
     if (markdownView.value !== originalContent && originalContent !== content) {
         const result = await window.electronAPI.sendIPC(
             'show-dialog-message', 
@@ -126,7 +130,7 @@ window.electronAPI.on('file-opened', async (event, file: string, content: string
     renderFile(file, content);
 });
 
-window.electronAPI.on('file-changed', (event, file: string, content: string) => {
+window.electronAPI.on('file-changed', (event: IpcRendererEvent, file: string, content: string) => {
     if (originalContent !== content) {
         window.electronAPI.sendIPC(
             'show-dialog-message',
