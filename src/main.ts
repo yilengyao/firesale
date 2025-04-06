@@ -1,16 +1,23 @@
-import { IpcMainEvent, OpenDialogReturnValue, SaveDialogReturnValue, KeyboardEvent } from 'electron';
+import { IpcMainEvent, 
+  OpenDialogReturnValue, 
+  SaveDialogReturnValue,
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  MenuItemConstructorOptions,
+  ipcMain,
+  Event} from 'electron';
 
-const { app, BrowserWindow, dialog, Menu, ipcMain } = require('electron');
-const createApplicationMenu = require('./application-menu');
-const path = require('node:path');
-const fs = require('fs');
+import createApplicationMenu from './application-menu.js';
+import path from 'node:path';
+import fs from 'fs';
 
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 
-const windows = new Set() as Set<typeof BrowserWindow>;
-const openFiles = new Map() as Map<typeof BrowserWindow, string>;
-exports.openFiles = openFiles;
+const windows = new Set() as Set<BrowserWindow>;
+const openFiles = new Map() as Map<BrowserWindow, string>;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -20,9 +27,9 @@ if (require('electron-squirrel-startup')) {
 const createWindow = exports.createWindow = () => {
   let x, y;
 
-  const currentWindow = BrowserWindow.getFocusedWindow() as typeof BrowserWindow;
+  const currentWindow = BrowserWindow.getFocusedWindow() as BrowserWindow;
 
-  let newWindow: typeof BrowserWindow | null;
+  let newWindow: BrowserWindow | null;
 
   if (currentWindow) {
     const [ currentX, currentY ] = currentWindow.getPosition();
@@ -33,18 +40,20 @@ const createWindow = exports.createWindow = () => {
       y,
       show: false,
       webPreferences: {
-        nodeIntegration: true,       // Enable this
-        contextIsolation: false,     // Disable this
+        nodeIntegration: false,
+        contextIsolation: true,
         preload: path.join(__dirname, 'preload.js'),
+        sandbox: false
       },
     });
   } else {
     newWindow = new BrowserWindow({
       show: false,
       webPreferences: {
-        nodeIntegration: true,       // Enable this
-        contextIsolation: false,     // Disable this
+        nodeIntegration: false,
+        contextIsolation: true,
         preload: path.join(__dirname, 'preload.js'),
+        sandbox: false
       },
     });
   }
@@ -53,7 +62,7 @@ const createWindow = exports.createWindow = () => {
   newWindow?.loadFile(path.join(__dirname, 'index.html'));
 
   newWindow.once('ready-to-show', () => {
-    newWindow.show();
+    newWindow?.show();
   });
 
   newWindow.on('focus', createApplicationMenu);
@@ -66,7 +75,9 @@ const createWindow = exports.createWindow = () => {
   });
 
   newWindow.on('closed', () => {
-    windows.delete(newWindow);
+    if (newWindow) {
+        windows.delete(newWindow);
+    };
     createApplicationMenu();
     newWindow = null;
   });
@@ -106,17 +117,17 @@ app.on('window-all-closed', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 ipcMain.on('get-file-from-user', (event: IpcMainEvent) => {
-  openFileFromUser(event);
+  getFileFromUser(event);
 });
 
-const openFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | typeof BrowserWindow): void => {
-  let targetWindow: typeof BrowserWindow;
+const getFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | BrowserWindow): void => {
+  let targetWindow: BrowserWindow;
   
   if (event instanceof BrowserWindow) {
-    targetWindow = event as typeof BrowserWindow;
+    targetWindow = event as BrowserWindow;
   } else {
     event = event as IpcMainEvent;
-    targetWindow = BrowserWindow.fromWebContents(event.sender);
+    targetWindow = BrowserWindow.fromWebContents(event.sender) as BrowserWindow;
   }
 
     dialog.showOpenDialog(targetWindow, {
@@ -145,10 +156,10 @@ const openFileFromUser = exports.getFileFromUser = (event: IpcMainEvent | typeof
 }
 
 ipcMain.on('open-file', (event: IpcMainEvent, file: string) => {
-  openFile(BrowserWindow.fromWebContents(event.sender), file);
+  openFile(BrowserWindow.fromWebContents(event.sender) as BrowserWindow, file);
 });
 
-const openFile = (targetWindow: typeof BrowserWindow, file: string): void => {
+const openFile = (targetWindow: BrowserWindow, file: string): void => {
   const content: string = fs.readFileSync(file).toString();
   app.addRecentDocument(file);
   targetWindow.setRepresentedFilename(file);
@@ -159,7 +170,7 @@ const openFile = (targetWindow: typeof BrowserWindow, file: string): void => {
 ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: string) => {
   if (!file) {
     // No file path yet - show save dialog
-    dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+    dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender) as BrowserWindow, {
       title: "Save Markdown",
       defaultPath: app.getPath('documents'),
       filters: [
@@ -171,7 +182,7 @@ ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: 
       if (!file) return;
 
       fs.writeFileSync(file, content);
-      openFile(BrowserWindow.fromWebContents(event.sender), file);
+      openFile(BrowserWindow.fromWebContents(event.sender) as BrowserWindow, file);
       createApplicationMenu();
     }).catch((err: Error) => {
       console.log('Error saving file:', err);
@@ -184,7 +195,7 @@ ipcMain.on('save-markdown', (event: IpcMainEvent, file: string | null, content: 
 });
 
 ipcMain.on('save-html', (event: IpcMainEvent, content: string) => {
-  dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+  dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender) as BrowserWindow, {
     title: "Save HTML",
     defaultPath: app.getPath('documents'),
     filters: [
@@ -204,14 +215,14 @@ ipcMain.on('create-window', () => {
 });
 
 ipcMain.on('update-title', (event: IpcMainEvent, title: string) => {
-  const window = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
+  const window = BrowserWindow.fromWebContents(event.sender) as BrowserWindow;
   if (window) {
     window.setTitle(title);
   }
 });
 
 ipcMain.on('update-document', (event: IpcMainEvent, isEdited: boolean) => {
-  const window = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
+  const window = BrowserWindow.fromWebContents(event.sender) as BrowserWindow;
   if (window) {
     window.setDocumentEdited(isEdited);
   }
@@ -219,7 +230,7 @@ ipcMain.on('update-document', (event: IpcMainEvent, isEdited: boolean) => {
 
 ipcMain.on('show-dialog-message', 
   (event: IpcMainEvent, type: string, title: string, message: string, buttons: [string], defaultId: number, cancelId: number) => {
-  const targetWindow = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
+  const targetWindow = BrowserWindow.fromWebContents(event.sender) as BrowserWindow;
   const result = dialog.showMessageBox(targetWindow, {
     type: 'question',
     title: title,
@@ -227,17 +238,18 @@ ipcMain.on('show-dialog-message',
     buttons: buttons,
     defaultId: defaultId,
     cancelId: cancelId
+  }).then((result: { response: number }) => {
+    return result.response === 0;
+  }).catch((err: Error) => {
+    console.error('Error showing dialog:', err);
   });
-
-  // Return true if the user click on the first button (e.g., "Yes")
-  return result.response === 0;
 });
 
-const markdownContextMenu = (targetWindow: typeof BrowserWindow) => [
+const markdownContextMenu = (targetWindow: BrowserWindow): MenuItemConstructorOptions[] => [
   {
     label: 'Open File',
     click() {
-      openFileFromUser(targetWindow);
+      getFileFromUser(targetWindow);
     }
   },
   {
@@ -267,21 +279,31 @@ const markdownContextMenu = (targetWindow: typeof BrowserWindow) => [
   },
   {
     label: 'Select All',
-    role: 'selectall'
+    role: 'selectAll'
   }
 ];
 
 ipcMain.on('show-context-menu', (event: IpcMainEvent) => {
-  const targetWindow = BrowserWindow.fromWebContents(event.sender) as typeof BrowserWindow;
+  const targetWindow = BrowserWindow.fromWebContents(event.sender) as BrowserWindow;
   const menu = Menu.buildFromTemplate(markdownContextMenu(targetWindow));
   menu.popup({
     window: targetWindow
   });
 });
 
-const stopWatchingFile = (targetWindow: typeof BrowserWindow): void => {
+const stopWatchingFile = (targetWindow: BrowserWindow): void => {
   if (openFiles.has(targetWindow)) {
-    fs.unwatchFile(openFiles.get(targetWindow));
+    fs.unwatchFile(openFiles.get(targetWindow) as string);
     openFiles.delete(targetWindow);
   }
+}
+
+// Export state and funcitons to other modeules
+export {
+  windows,
+  openFiles,
+  createWindow,
+  getFileFromUser,
+  openFile,
+  stopWatchingFile
 }
