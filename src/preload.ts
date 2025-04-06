@@ -10,7 +10,7 @@ import { marked } from 'marked';
 // Expose safe APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
   // IPC functions
-  sendIPC: (channel: string, ...args: any[]) => {
+  send: (channel: string, ...args: any[]) => {
     const validSendChannels = [
       'create-window', 'get-file-from-user', 'save-markdown', 
       'save-html', 'show-context-menu', 'update-title', 'update-document',

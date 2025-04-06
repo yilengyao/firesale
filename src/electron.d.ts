@@ -1,6 +1,6 @@
 // electron.d.ts
 export interface ElectronAPI {
-    sendIPC: (channel: string, ...args: any[]) => void;
+    send: (channel: string, ...args: any[]) => void;
     showItemInFolder: (filePath: string) => void;
     openPath: (filePath: string) => Promise<string>;
     beep: () => void;

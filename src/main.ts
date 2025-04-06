@@ -69,8 +69,6 @@ const createWindow = exports.createWindow = () => {
 
   newWindow.on('close', (event: Event) => {
     event.preventDefault();
-    // console.log('Window closing');
-    console.log("isDocumentEdited", newWindow?.isDocumentEdited());
     newWindow?.destroy();
   });
 

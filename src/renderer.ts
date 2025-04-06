@@ -49,8 +49,8 @@ const updateUserInterface = (isEdited: boolean): void => {
         title = `${title} (Edited)`;
     }
 
-    window.electronAPI.sendIPC('update-title', title);
-    window.electronAPI.sendIPC('update-document', isEdited);
+    window.electronAPI.send('update-title', title);
+    window.electronAPI.send('update-document', isEdited);
 
     saveMarkdownButton.disabled = !isEdited;
     revertButton.disabled = !isEdited;
@@ -66,20 +66,20 @@ markdownView.addEventListener('keyup', (event: Event) => {
 
 markdownView.addEventListener('contextmenu', (event: MouseEvent) => {
     event.preventDefault();
-    window.electronAPI.sendIPC('show-context-menu');
+    window.electronAPI.send('show-context-menu');
 });
 
 newFileButton.addEventListener('click', () => {
     // Invokes createWindow in main process
-    window.electronAPI.sendIPC('create-window');
+    window.electronAPI.send('create-window');
 });
 
 openFileButton.addEventListener('click', () => {
-    window.electronAPI.sendIPC('get-file-from-user');
+    window.electronAPI.send('get-file-from-user');
 });
 
 saveMarkdownButton.addEventListener('click', () => {
-    window.electronAPI.sendIPC('save-markdown', filePath, markdownView.value);
+    window.electronAPI.send('save-markdown', filePath, markdownView.value);
     originalContent = markdownView.value;
 })
 
@@ -89,7 +89,7 @@ revertButton.addEventListener('click', () => {
 })
 
 saveHtmlButton.addEventListener('click', () => {
-    window.electronAPI.sendIPC('save-html', htmlView.innerHTML);
+    window.electronAPI.send('save-html', htmlView.innerHTML);
 });
 
 const showFile = () => {
@@ -112,7 +112,7 @@ openInDefaultButton.addEventListener('click', openInDefaultApplication);
 
 window.electronAPI.on('file-opened', async (event: IpcRendererEvent, file: string, content: string) => {
     if (markdownView.value !== originalContent && originalContent !== content) {
-        const result = await window.electronAPI.sendIPC(
+        const result = await window.electronAPI.send(
             'show-dialog-message', 
             'warning',
             'Overwrite Current Unsaved Changes?',
@@ -132,7 +132,7 @@ window.electronAPI.on('file-opened', async (event: IpcRendererEvent, file: strin
 
 window.electronAPI.on('file-changed', (event: IpcRendererEvent, file: string, content: string) => {
     if (originalContent !== content) {
-        window.electronAPI.sendIPC(
+        window.electronAPI.send(
             'show-dialog-message',
             'warning',
             'Overwrite Current Unsaved Changes?',
@@ -203,9 +203,9 @@ markdownView.addEventListener('drop', (event: DragEvent) => {
 });
 
 window.electronAPI.on('save-markdown', () => {
-    window.electronAPI.sendIPC('save-markdown', filePath, markdownView.value);
+    window.electronAPI.send('save-markdown', filePath, markdownView.value);
 })
 
 window.electronAPI.on('save-html', () => {
-    window.electronAPI.sendIPC('save-html', htmlView.innerHTML);
+    window.electronAPI.send('save-html', htmlView.innerHTML);
 });
