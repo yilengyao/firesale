@@ -1,16 +1,14 @@
-const { app, MenuItem, BrowserWindow, dialog, Menu } = require('electron');
-const mainProcess = require('./main');
+import { app, MenuItem, BrowserWindow, dialog, Menu } from 'electron';
+import { openFiles, createWindow, getFileFromUser } from './main.js';
+
 
 const createApplicationMenu = () => {
     const hasOneOrMoreWindows = !!BrowserWindow.getAllWindows().length;    
     const focusedWindow = BrowserWindow.getFocusedWindow();
-    const hasFilePath = (item: typeof MenuItem, browserWindow: typeof BrowserWindow) => {
-        console.log('Checking hasFilePath for window:', browserWindow?.id);
-        console.log('openFiles exists:', !!mainProcess.openFiles);
-        console.log('openFiles entries:', [...(mainProcess.openFiles || new Map())]);
+    const hasFilePath = (item: MenuItem, browserWindow: BrowserWindow) => {
         
         if (!browserWindow) return false;
-        const result = mainProcess.openFiles.has(browserWindow);
+        const result = openFiles.has(browserWindow);
 
         console.log('Result:', result);
 
@@ -25,21 +23,21 @@ const createApplicationMenu = () => {
                     label: 'New File',
                     accelerator: 'CommandOrControl+N',
                     click() {
-                        mainProcess.createWindow();
+                        createWindow();
                     }
                 },
                 {
                     label: 'Open File',
                     accelerator: 'CommandOrControl+O',
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (focusWindow) {
-                            return mainProcess.getFileFromUser(focusWindow);
+                            return getFileFromUser(focusWindow);
                         }
 
-                        const newWindow = mainProcess.createWindow();
+                        const newWindow = createWindow();
 
                         newWindow.on('show', () => {
-                            mainProcess.getFileFromUser(newWindow);
+                            getFileFromUser(newWindow);
                         });
                     }
                 },
@@ -47,7 +45,7 @@ const createApplicationMenu = () => {
                     label: 'Save File',
                     accelerator: 'CommandOrControl+S',
                     enabled: hasOneOrMoreWindows,
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (!focusWindow) {
                             return dialog.showErrorBox(
                                 'Cannot Save or Export',
@@ -61,7 +59,7 @@ const createApplicationMenu = () => {
                     label: 'Export HTML',
                     accelerator: 'Shift+CommandOrControl+S',
                     enabled: hasOneOrMoreWindows,
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (!focusWindow) {
                             return dialog.showErrorBox(
                                 'Cannot Save or Export',
@@ -75,7 +73,7 @@ const createApplicationMenu = () => {
                 {
                     label: 'Show File',
                     enabled: hasFilePath,
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (!focusWindow) {
                             return dialog.showErrorBox(
                                 'Cannot Show File\'s Location',
@@ -88,7 +86,7 @@ const createApplicationMenu = () => {
                 {
                     label: 'Open in Default Application',
                     enabled: hasFilePath,
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (!focusWindow) {
                             return dialog.showErrorBox(
                                 'Cannot Open File in Default Application',
@@ -160,7 +158,7 @@ const createApplicationMenu = () => {
                 },
                 {
                     label: 'Toggle Developer Tools',
-                    click(item: typeof MenuItem, focusWindow: typeof BrowserWindow) {
+                    click(item: MenuItem, focusWindow: BrowserWindow) {
                         if (focusWindow) {
                             focusWindow.webContents.toggleDevTools();
                         }
@@ -211,7 +209,7 @@ const createApplicationMenu = () => {
             ]
         });
 
-        const windowMenu = template.find((item: typeof MenuItem) => item.label === 'Window');
+        const windowMenu = template.find((item: MenuItem) => item.label === 'Window');
         windowMenu.role = 'window';
         windowMenu.submenu.push(
             { type: 'separator' },
@@ -224,4 +222,4 @@ const createApplicationMenu = () => {
     return Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-module.exports = createApplicationMenu;
+export default createApplicationMenu;

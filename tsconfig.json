@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-      "target": "ES2018",
+      "target": "ES2024",
       "module": "CommonJS",
       "moduleResolution": "node",
       "outDir": "./dist",
@@ -8,7 +8,8 @@
       "strict": true,
       "esModuleInterop": true,
       "sourceMap": true,
-      "baseUrl": "."
+      "baseUrl": ".",
+      "typeRoots": []
     },
     "include": ["src/**/*"]
 }
